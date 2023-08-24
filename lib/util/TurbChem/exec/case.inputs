@@ -1,0 +1,112 @@
+#====================================================================
+#
+# Post processing input file
+#
+# Note: You must specify enough information to construct the file
+#       names, but not much more. If AMR is used, the program will
+#       figure it out by reading the file header (when the program
+#       is made to work with AMR). Additionally, it will determine
+#       the number of components in the file.
+#
+# Note: If the results are mapped, you will have to specify this
+#       and specify the files where the mapping is stored.
+#
+# Note: The user must also specify the variables that need to be
+#       computed and printed to CSV files or to HDF5 files.
+#
+#====================================================================
+
+#--------------------------------------------------------------------
+# Basic setup
+#--------------------------------------------------------------------
+
+# Turn on some output
+postProcess.verbosity = 1
+
+# Line size
+postProcess.terminal_line_size = 80
+
+#--------------------------------------------------------------------
+# Files and I/O
+#--------------------------------------------------------------------
+
+# File starting number
+postProcess.file_Start = 4540
+
+# File stopping number
+postProcess.file_Stop = 4550
+
+# File step size
+postProcess.file_Step = 10
+
+# Input file number field width
+# example: plot.123456.hdf5 , field width = 6
+postProcess.fileNumber_Field_Width = 6
+
+# Input path (end with /)
+postProcess.input_file_path =  /home/user/chombo/Chombo/lib/util/TurbChem/exec/TaylorGreen/Mesh64/Mesh64_Normal/plot/
+
+# Output path (end with /)
+postProcess.output_file_path = /home/user/chombo/Chombo/lib/util/TurbChem/exec/TaylorGreen/Mesh64/Mesh64_Normal/output/
+
+# Input file root
+postProcess.input_file_root = TaylorGreen.plot.
+
+# Output CSV file name (specify full name including ".csv")
+postProcess.output_CSV_file = /home/user/chombo/Chombo/lib/util/TurbChem/exec/TaylorGreen/Mesh64/Mesh64_Normal/plot/TaylorGreen_Mesh64_Normal.csv
+
+# Output HDF file root
+postProcess.output_HDF_file_root = ../plot/TaylorGreen.ExtraVariables.plot.
+
+# Input mapping file root
+postProcess.mapping_file_root = TaylorGreen.plot.
+
+# Output ESD file root
+postProcess.output_ESD_file_root = TaylorGreen.esd.
+
+# Output ghost cell number
+postProcess.num_ghost_cell_output = 0
+
+#--------------------------------------------------------------------
+# Boundary Conditions and Mesh Parameters
+#--------------------------------------------------------------------
+
+# Define which directions are periodic
+postProcess.periodicity = 1 1 1
+
+# Time scaling parameter
+postProcess.time_Mult_Scaling = 6.2831853
+
+# Mapped solution check
+postProcess.mapped_simulation = false
+
+#--------------------------------------------------------------------
+# Variables to Compute
+#--------------------------------------------------------------------
+
+# Variables to compute
+#   primitive variables: p, t
+#   gradient           : grad_p, grad_t, grad_vel, grad_rms_vel
+#   divergence         : div_p, div_t, div_vel
+#   derived quantities : vorticity, enstrophy, palinstrophy, helicity
+#                      : entropy, KE
+#   root-means-square  : rms_vel
+#   other quantities   : p_div_vel, grad_p_dot_vel
+
+postProcess.output_time_domainSum_variables = enstrophy KE
+
+postProcess.output_time_point_variables = enstrophy KE
+
+postProcess.time_output_DomainLocation = 0 0 0
+
+postProcess.output_global_variables = enstrophy KE
+
+postProcess.var_scaling = 0.02533 8
+
+postProcess.order_of_accuracy = 4
+
+postProcess.compute_variable_method = 0
+
+postProcess.compressible = true
+
+postProcess.thermally_perfect = false

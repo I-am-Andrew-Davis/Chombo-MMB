@@ -1,0 +1,35 @@
+# -*- Mode: Makefile;  -*-
+
+makefiles+=lib_src_$(lbase)
+
+usage:
+	@echo "This makefile supports targets:"
+	@echo "     all lib $(lbase) clean realclean usage"
+
+include $(CHOMBO_HOME)/mk/Make.defs
+
+# The `all-lib', `lib-only', `$(lbase)', `clean' and `realclean' targets are defined in `Make.rules'
+.PHONY: all lib usage
+
+all: all-lib
+lib: lib-only
+
+vars:
+	@echo "CHOMBO_HOME=$(CHOMBO_HOME)"
+	@echo "ebase=$(ebase)"
+	@echo "ebaseobject=$(ebaseobject)"
+	@echo "LibNames=$(LibNames)"
+	@echo "base_dir=$(base_dir)"
+	@echo "src_dirs = $(src_dirs)"
+	@echo "config=$(config)"
+	@echo "objects=$(objects)"
+	@echo "depends=$(depends)"
+	@echo "appcppflags=$(appcppflags)"
+	@echo "_srcs=$(_srcs)"
+	@echo "_srccus=$(_srccus)"
+	@echo "_base_objs=$(_base_objs)"
+	@echo "_base_srcs=$(_base_srcs)"
+	@echo "_base_srccus=$(_base_srccus)"
+	@$(MAKE) --no-print-directory -f $(CHOMBO_HOME)/mk/Make.printVariables CHOMBO_HOME=$(CHOMBO_HOME) $@
+
+include $(CHOMBO_HOME)/mk/Make.rules

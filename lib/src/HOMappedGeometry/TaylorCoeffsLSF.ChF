@@ -1,0 +1,670 @@
+C      _______              __
+C     / ___/ /  ___  __ _  / /  ___
+C    / /__/ _ \/ _ \/  V \/ _ \/ _ \
+C    \___/_//_/\___/_/_/_/_.__/\___/
+C    Please refer to Copyright.txt, in Chombo's root directory.
+
+#include "CONSTANTS.H"
+      subroutine powersofdisplacementpoint(
+!
+!     => inputs,  <= outputs
+!     powers <= array to fill in
+!     disp    => displacement
+!     degBox  => box (0:degree)^D
+!     degree  => max degree of powers
+     &     CHF_VR[powers],
+     &     CHF_CONST_REALVECT[disp],
+     &     CHF_BOX[degBox],
+     &     CHF_CONST_INT[degree])
+
+      integer CHF_DDECL[i;j;k;l;m;n]
+      integer ipow, sumpow
+
+!     It is very inefficient to compute powers this way.
+!     Speed this up later.
+      ipow = 0
+      CHF_MULTIDO[degBox;i;j;k;l;m;n]
+         sumpow = CHF_DTERM[i; +j; +k; +l; +m; +n]
+         if (sumpow .le. degree) then
+            powers(ipow) = CHF_DTERM[
+     &           (disp(0)**i) ;
+     &           * (disp(1)**j) ;
+     &           * (disp(2)**k) ;
+     &           * (disp(3)**l) ;
+     &           * (disp(4)**m) ;
+     &           * (disp(5)**n) ]
+            ipow = ipow + 1
+         endif
+      CHF_ENDDO
+
+      return
+      end
+
+
+      subroutine powersofdisplacementfab(
+!
+!     => inputs,  <= outputs
+!     powersFab <= array to fill in
+!     pt         => point of powersFab to fill in
+!     disp       => displacement
+!     degBox     => box (0:degree)^D
+!     degree     => max degree of powers
+     &     CHF_FRA[powersFab],
+     &     CHF_CONST_INTVECT[pt],
+     &     CHF_CONST_REALVECT[disp],
+     &     CHF_BOX[degBox],
+     &     CHF_CONST_INT[degree])
+
+      integer CHF_DDECL[i;j;k;l;m;n]
+      integer ipow, sumpow
+      real_t CHF_DDECL[xpow(0:degree); ypow(0:degree);
+     &     zpow(0:degree); upow(0:degree);
+     &     vpow(0:degree); wpow(0:degree) ]
+      real_t CHF_DDECL[xplast; yplast; zplast; uplast; vplast; wplast]
+
+      CHF_DTERM[
+      xpow(0) = one ;
+      ypow(0) = one ;
+      zpow(0) = one ;
+      upow(0) = one ;
+      vpow(0) = one ;
+      wpow(0) = one ]
+      if (degree .ge. 1) then
+         CHF_DTERM[
+         xpow(1) = disp(0) ;
+         ypow(1) = disp(1) ;
+         zpow(1) = disp(2) ;
+         upow(1) = disp(3) ;
+         vpow(1) = disp(4) ;
+         wpow(1) = disp(5) ]
+         CHF_DTERM[
+         xplast = xpow(1) ;
+         yplast = ypow(1) ;
+         zplast = zpow(1) ;
+         uplast = upow(1) ;
+         vplast = vpow(1) ;
+         wplast = wpow(1) ]
+      endif
+      do ipow = 2, degree
+         CHF_DTERM[
+         xpow(ipow) = disp(0) * xplast ;
+         ypow(ipow) = disp(1) * yplast ;
+         zpow(ipow) = disp(2) * zplast ;
+         upow(ipow) = disp(3) * uplast ;
+         vpow(ipow) = disp(4) * vplast ;
+         wpow(ipow) = disp(5) * wplast ]
+         CHF_DTERM[
+         xplast = xpow(ipow) ;
+         yplast = ypow(ipow) ;
+         zplast = zpow(ipow) ;
+         uplast = upow(ipow) ;
+         vplast = vpow(ipow) ;
+         wplast = wpow(ipow) ]
+      enddo
+
+      ipow = 0
+      CHF_MULTIDO[degBox;i;j;k;l;m;n]
+         sumpow = CHF_DTERM[i; +j; +k; +l; +m; +n]
+         if (sumpow .le. degree) then
+            powersFAB(
+     &           CHF_IX[pt(0); pt(1); pt(2); pt(3); pt(4); pt(5)],
+     &           ipow) = CHF_DTERM[
+     &           xpow(i) ;
+     &           * ypow(j) ;
+     &           * zpow(k) ;
+     &           * upow(l) ;
+     &           * vpow(m) ;
+     &           * wpow(n) ]
+            ipow = ipow + 1
+         endif
+      CHF_ENDDO
+
+      return
+      end
+
+
+      subroutine powersofdisplacementstencil(
+!
+!     => inputs,  <= outputs
+!     powersFab <= array to fill in
+!     centersFab => centers of cells
+!     base       => common base point
+!     dx         => mesh spacing
+!     degBox     => box (0:degree)^D
+!     degree     => max degree of powers
+     &     CHF_FRA[powersFab],
+     &     CHF_CONST_FRA[centersFab],
+     &     CHF_CONST_REALVECT[base],
+     &     CHF_CONST_REALVECT[dx],
+     &     CHF_BOX[degBox],
+     &     CHF_CONST_INT[degree])
+
+      integer CHF_DDECL[i;j;k;l;m;n]
+      integer ipow, sumpow, idir, offdir
+      integer CHF_DDECL[ii;jj;kk;ll;mm;nn]
+      real_t disp(0:CH_SPACEDIM-1)
+
+!     First for center point.
+
+      do idir = 0, CH_SPACEDIM-1
+         disp(idir) = (
+     &        centersFab(CHF_IX[0; 0; 0; 0; 0; 0], idir)
+     &        - base(idir) ) / dx(idir)
+      enddo
+!      print *, 'center', disp(0), disp(1)
+
+!     It is very inefficient to compute powers this way.
+!     Speed this up later.
+      ipow = 0
+      CHF_MULTIDO[degBox;i;j;k;l;m;n]
+         sumpow = CHF_DTERM[i; +j; +k; +l; +m; +n]
+         if (sumpow .le. degree) then
+            powersFAB(
+     &           CHF_IX[0; 0; 0; 0; 0; 0], ipow) = CHF_DTERM[
+     &           (disp(0)**i) ;
+     &           * (disp(1)**j) ;
+     &           * (disp(2)**k) ;
+     &           * (disp(3)**l) ;
+     &           * (disp(4)**m) ;
+     &           * (disp(5)**n) ]
+            ipow = ipow + 1
+         endif
+      CHF_ENDDO
+
+!     Now for off-center points of the stencil.
+
+      do offdir = 0, CH_SPACEDIM-1
+
+         CHF_DTERM[
+         ii = CHF_ID(offdir, 0);
+         jj = CHF_ID(offdir, 1);
+         kk = CHF_ID(offdir, 2);
+         ll = CHF_ID(offdir, 3);
+         mm = CHF_ID(offdir, 4);
+         nn = CHF_ID(offdir, 5)]
+
+!     +offdir
+         do idir = 0, CH_SPACEDIM-1
+            disp(idir) = (
+     &           centersFab(CHF_IX[ii; jj; kk; ll; mm; nn], idir)
+     &           - base(idir) ) / dx(idir)
+         enddo
+!      print *, offdir, 1, disp(0), disp(1)
+
+         ipow = 0
+         CHF_MULTIDO[degBox;i;j;k;l;m;n]
+         sumpow = CHF_DTERM[i; +j; +k; +l; +m; +n]
+         if (sumpow .le. degree) then
+            powersFab(CHF_IX[ii; jj; kk; ll; mm; nn], ipow) =
+     &           CHF_DTERM[
+     &           (disp(0)**i) ;
+     &           * (disp(1)**j) ;
+     &           * (disp(2)**k) ;
+     &           * (disp(3)**l) ;
+     &           * (disp(4)**m) ;
+     &           * (disp(5)**n) ]
+            ipow = ipow + 1
+         endif
+         CHF_ENDDO
+
+!     -offdir
+         do idir = 0, CH_SPACEDIM-1
+            disp(idir) = (
+     &           centersFab(CHF_IX[-ii; -jj; -kk; -ll; -mm; -nn], idir)
+     &           - base(idir) ) / dx(idir)
+         enddo
+!      print *, offdir, -1, disp(0), disp(1)
+
+         ipow = 0
+         CHF_MULTIDO[degBox;i;j;k;l;m;n]
+         sumpow = CHF_DTERM[i; +j; +k; +l; +m; +n]
+         if (sumpow .le. degree) then
+            powersFab(CHF_IX[-ii; -jj; -kk; -ll; -mm; -nn], ipow) =
+     &           CHF_DTERM[
+     &           (disp(0)**i) ;
+     &           * (disp(1)**j) ;
+     &           * (disp(2)**k) ;
+     &           * (disp(3)**l) ;
+     &           * (disp(4)**m) ;
+     &           * (disp(5)**n) ]
+            ipow = ipow + 1
+         endif
+         CHF_ENDDO
+
+      enddo
+
+      return
+      end
+
+
+      subroutine powersofdisplacementstencilwork(
+!
+!     => inputs,  <= outputs
+!     powersFab <= array to fill in
+!     centersFab => centers of cells
+!     workFab    => work array on [-1:1]^D, degree*SpaceDim components
+!     base       => common base point
+!     dx         => mesh spacing
+!     degBox     => box (0:degree)^D
+!     degree     => max degree of powers
+     &     CHF_FRA[powersFab],
+     &     CHF_CONST_FRA[centersFab],
+     &     CHF_FRA[workFab],
+     &     CHF_CONST_REALVECT[base],
+     &     CHF_CONST_REALVECT[dx],
+     &     CHF_BOX[degBox],
+     &     CHF_CONST_INT[degree])
+
+      integer CHF_DDECL[i;j;k;l;m;n]
+      integer ipow, sumpow, idir, offdir, indpow, inddir
+      integer CHF_DDECL[ii;jj;kk;ll;mm;nn]
+      real_t disp, result
+
+      if (degree .ge. 1) then
+
+!     workFab(pt, degree*idir + pow-1) == x[pt][idir]^pow
+
+         inddir = 0
+         do idir = 0, CH_SPACEDIM-1
+            disp = (
+     &           centersFab(CHF_IX[0; 0; 0; 0; 0; 0], idir)
+     &           - base(idir) ) / dx(idir)
+            indpow = inddir
+            result = disp
+            workFab(CHF_IX[0; 0; 0; 0; 0; 0], indpow) =
+     &           result
+            do ipow = 2, degree
+               indpow = indpow + 1
+               result = disp * result
+               workFab(CHF_IX[0; 0; 0; 0; 0; 0], indpow) =
+     &              result
+            enddo
+            inddir = inddir + degree
+         enddo
+
+         do offdir = 0, CH_SPACEDIM-1
+
+            CHF_DTERM[
+            ii = CHF_ID(offdir, 0);
+            jj = CHF_ID(offdir, 1);
+            kk = CHF_ID(offdir, 2);
+            ll = CHF_ID(offdir, 3);
+            mm = CHF_ID(offdir, 4);
+            nn = CHF_ID(offdir, 5)]
+
+            inddir = 0
+            do idir = 0, CH_SPACEDIM-1
+               disp = (
+     &              centersFab(CHF_IX[ii; jj; kk; ll; mm; nn],
+     &              idir) - base(idir) ) / dx(idir)
+               indpow = inddir
+               result = disp
+               workFab(CHF_IX[ii; jj; kk; ll; mm; nn],
+     &              indpow) = result
+               do ipow = 2, degree
+                  indpow = indpow + 1
+                  result = disp * result
+                  workFab(CHF_IX[ii; jj; kk; ll; mm; nn],
+     &                 indpow) = result
+               enddo
+               inddir = inddir + degree
+            enddo
+
+            inddir = 0
+            do idir = 0, CH_SPACEDIM-1
+               disp = (
+     &              centersFab(CHF_IX[-ii; -jj; -kk; -ll; -mm; -nn],
+     &              idir) - base(idir) ) / dx(idir)
+               indpow = inddir
+               result = disp
+               workFab(CHF_IX[-ii; -jj; -kk; -ll; -mm; -nn],
+     &              indpow) = result
+               do ipow = 2, degree
+                  indpow = indpow + 1
+                  result = disp * result
+                  workFab(CHF_IX[-ii; -jj; -kk; -ll; -mm; -nn],
+     &                 indpow) = result
+               enddo
+               inddir = inddir + degree
+            enddo
+
+         enddo
+      endif
+
+      ipow = 0
+      CHF_MULTIDO[degBox;i;j;k;l;m;n]
+         sumpow = CHF_DTERM[i; +j; +k; +l; +m; +n]
+         if (sumpow .le. degree) then
+
+!     workFab(pt, degree*idir + pow-1) == x[pt][idir]^pow
+            result = one
+            CHF_DTERM[
+            if (i .gt. 0) result = result *
+     &           workFab(CHF_IX[0; 0; 0; 0; 0; 0],
+     &           i-1) ;
+            if (j .gt. 0) result = result *
+     &           workFab(CHF_IX[0; 0; 0; 0; 0; 0],
+     &           degree + j-1) ;
+            if (k .gt. 0) result = result *
+     &           workFab(CHF_IX[0; 0; 0; 0; 0; 0],
+     &           2*degree + k-1) ;
+            if (l .gt. 0) result = result *
+     &           workFab(CHF_IX[0; 0; 0; 0; 0; 0],
+     &           3*degree + l-1) ;
+            if (m .gt. 0) result = result *
+     &           workFab(CHF_IX[0; 0; 0; 0; 0; 0],
+     &           4*degree + m-1) ;
+            if (n .gt. 0) result = result *
+     &           workFab(CHF_IX[0; 0; 0; 0; 0; 0],
+     &           5*degree + n-1) ]
+            powersFab(CHF_IX[0; 0; 0; 0; 0; 0],
+     &           ipow) = result
+
+            do offdir = 0, CH_SPACEDIM-1
+
+               CHF_DTERM[
+               ii = CHF_ID(offdir, 0);
+               jj = CHF_ID(offdir, 1);
+               kk = CHF_ID(offdir, 2);
+               ll = CHF_ID(offdir, 3);
+               mm = CHF_ID(offdir, 4);
+               nn = CHF_ID(offdir, 5)]
+
+               result = one
+               CHF_DTERM[
+               if (i .gt. 0) result = result *
+     &              workFab(CHF_IX[ii; jj; kk; ll; mm; nn],
+     &              i-1) ;
+               if (j .gt. 0) result = result *
+     &              workFab(CHF_IX[ii; jj; kk; ll; mm; nn],
+     &              degree + j-1) ;
+               if (k .gt. 0) result = result *
+     &              workFab(CHF_IX[ii; jj; kk; ll; mm; nn],
+     &              2*degree + k-1) ;
+               if (l .gt. 0) result = result *
+     &              workFab(CHF_IX[ii; jj; kk; ll; mm; nn],
+     &              3*degree + l-1) ;
+               if (m .gt. 0) result = result *
+     &              workFab(CHF_IX[ii; jj; kk; ll; mm; nn],
+     &              4*degree + m-1) ;
+               if (n .gt. 0) result = result *
+     &              workFab(CHF_IX[ii; jj; kk; ll; mm; nn],
+     &              5*degree + n-1) ]
+               powersFab(CHF_IX[ii; jj; kk; ll; mm; nn],
+     &              ipow) = result
+
+               result = one
+               CHF_DTERM[
+               if (i .gt. 0) result = result *
+     &              workFab(CHF_IX[-ii; -jj; -kk; -ll; -mm; -nn],
+     &              i-1) ;
+               if (j .gt. 0) result = result *
+     &              workFab(CHF_IX[-ii; -jj; -kk; -ll; -mm; -nn],
+     &              degree + j-1) ;
+               if (k .gt. 0) result = result *
+     &              workFab(CHF_IX[-ii; -jj; -kk; -ll; -mm; -nn],
+     &              2*degree + k-1) ;
+               if (l .gt. 0) result = result *
+     &              workFab(CHF_IX[-ii; -jj; -kk; -ll; -mm; -nn],
+     &              3*degree + l-1) ;
+               if (m .gt. 0) result = result *
+     &              workFab(CHF_IX[-ii; -jj; -kk; -ll; -mm; -nn],
+     &              4*degree + m-1) ;
+               if (n .gt. 0) result = result *
+     &              workFab(CHF_IX[-ii; -jj; -kk; -ll; -mm; -nn],
+     &              5*degree + n-1) ]
+               powersFab(CHF_IX[-ii; -jj; -kk; -ll; -mm; -nn],
+     &              ipow) = result
+
+            enddo
+
+            ipow = ipow + 1
+         endif
+      CHF_ENDDO
+
+      return
+      end
+
+
+      subroutine addallpowerspoint(
+!
+!     Given exponents, say in 2D and degree 3 (length 20):
+!     00 10 20 30 01 11 21 02 12 03
+!     then this function increments the array powers (length 10)
+!     by weight *:
+!     1, x, x^2, x^3, y, x*y, x*2*y, y^2, x*y^2, y^3
+!     where x = disp(1), y = disp(2).
+!
+!     => inputs,  <= outputs
+!     powers <= array to fill in
+!     disp    => displacement
+!     expts   => exponents
+!     weight  => weight
+     &     CHF_VR[powers],
+     &     CHF_CONST_REALVECT[disp],
+     &     CHF_CONST_VI[expts],
+     &     CHF_CONST_REAL[weight])
+
+      integer ipow, idir, ico, exprev(0:CH_SPACEDIM-1)
+      integer expnew, expold
+      real_t curpow(0:CH_SPACEDIM-1), wtcprd
+      logical found1
+
+!     In each dimension, initialize previous exponent to 0,
+!     and current power to 1.
+      do idir = 0, CH_SPACEDIM-1
+         exprev(idir) = 0
+         curpow(idir) = one
+      enddo
+      ico = 0
+      do ipow = 0, CHF_UBOUND[powers]
+!     We will set wtcprd to weight * product over all dimensions of curpow.
+         wtcprd = weight
+!     The order in expts for, say, 3D and degree 3, is:
+!     000, 100, 200, 300, 010, 110, 210, 020, 120, 030,
+!     001, 101, 201, 011, 111, 021, 002, 102, 012, 003.
+!     These correspond to setting wtcprd to weight *:
+!     1, x, x^2, x^3, y, x*y, x^2*y, y^2, x*y^2, y^3,
+!     z, x*z, x^2*z, y*z, x*y*z, y^2*z, z^2, x*z^2, y*z^2, z^3
+!     where x = disp(1), y = disp(2), z = disp(3).
+         found1 = .false.
+         do idir = 0, CH_SPACEDIM-1
+!     Set expnew to exponent in dimension idir.
+            expnew = expts(ico)
+            if (.not. found1) then
+!     Set expold to previous exponent in dimension idir.
+               expold = exprev(idir)
+               if (expnew .lt. expold) then
+!     Exponent in dimension idir decreases.
+!     So reset current power in dimension idir to 1.
+                  curpow(idir) = one
+               elseif (expnew .eq. expold+1) then
+!     Exponent in dimension idir increases by 1.
+!     So multiply current power in dimension idir by disp(idir).
+                  curpow(idir) = curpow(idir) * disp(idir)
+!     And make no changes to current powers in other dimensions.
+                  found1 = .true.
+               endif
+            endif
+            wtcprd = wtcprd * curpow(idir)
+!     Save exponent in dimension idir for next iteration.
+            exprev(idir) = expnew
+            ico = ico + 1
+         enddo
+!     Increment this power by weight * product of curpow.
+         powers(ipow) = powers(ipow) + wtcprd
+      enddo
+
+      return
+      end
+
+
+      subroutine addallpowersvector(
+!
+!     Given exponents, say in 2D and degree 3 (length 20):
+!     00 10 20 30 01 11 21 02 12 03
+!     then this function increments the array powers (length 10)
+!     by weight *:
+!     1, x, x^2, x^3, y, x*y, x*2*y, y^2, x*y^2, y^3
+!     where x = disp(1), y = disp(2).
+!
+!     => inputs,  <= outputs
+!     powers <= array to fill in
+!     disp    => displacement
+!     expts   => exponents
+!     weight  => weight
+!     vt      => vector transformation coefficients
+     &     CHF_VR[powers],
+     &     CHF_CONST_REALVECT[disp],
+     &     CHF_CONST_VI[expts],
+     &     CHF_CONST_REAL[weight],
+     &     CHF_CONST_R1D[vt])
+
+      integer ipow, idir, ico, exprev(0:CH_SPACEDIM-1), npow
+      integer expnew, expold
+      integer ind, ivec
+      real_t curpow(0:CH_SPACEDIM-1), wtcprd
+      logical found1
+
+!     In each dimension, initialize previous exponent to 0,
+!     and current power to 1.
+      do idir = 0, CH_SPACEDIM-1
+         exprev(idir) = 0
+         curpow(idir) = one
+      enddo
+      npow = (CHF_UBOUND[expts] + 1) / CH_SPACEDIM
+      ico = 0
+      do ipow = 0, npow-1
+!     We will set wtcprd to weight * product over all dimensions of curpow.
+         wtcprd = weight
+!     The order in expts for, say, 3D and degree 3, is:
+!     000, 100, 200, 300, 010, 110, 210, 020, 120, 030,
+!     001, 101, 201, 011, 111, 021, 002, 102, 012, 003.
+!     These correspond to setting wtcprd to weight *:
+!     1, x, x^2, x^3, y, x*y, x^2*y, y^2, x*y^2, y^3,
+!     z, x*z, x^2*z, y*z, x*y*z, y^2*z, z^2, x*z^2, y*z^2, z^3
+!     where x = disp(1), y = disp(2), z = disp(3).
+         found1 = .false.
+         do idir = 0, CH_SPACEDIM-1
+!     Set expnew to exponent in dimension idir.
+            expnew = expts(ico)
+            if (.not. found1) then
+!     Set expold to previous exponent in dimension idir.
+               expold = exprev(idir)
+               if (expnew .lt. expold) then
+!     Exponent in dimension idir decreases.
+!     So reset current power in dimension idir to 1.
+                  curpow(idir) = one
+               elseif (expnew .eq. expold+1) then
+!     Exponent in dimension idir increases by 1.
+!     So multiply current power in dimension idir by disp(idir).
+                  curpow(idir) = curpow(idir) * disp(idir)
+!     And make no changes to current powers in other dimensions.
+                  found1 = .true.
+               endif
+            endif
+            wtcprd = wtcprd * curpow(idir)
+!     Save exponent in dimension idir for next iteration.
+            exprev(idir) = expnew
+            ico = ico + 1
+         enddo
+!     Increment this power by weight * product of curpow.
+!         powers(ipow) = powers(ipow) + wtcprd
+         ind = ipow
+         do ivec = 0, CH_SPACEDIM*CH_SPACEDIM-1
+            powers(ind) = powers(ind) + wtcprd * vt(ivec)
+            ind = ind + npow
+         enddo
+      enddo
+
+      return
+      end
+
+
+      subroutine taylorcoeffsfromleastsquares(
+!
+!     On input, this subroutine takes neqns vectors of
+!     nvars powers of displacement at a point,
+!     e.g., in 2D with degree 3:
+!     1, x, x^2, x^3, y, x*y, x^2*y, y^2, x*y^2, y^3.
+!     The input coeffs consists of neqns vectors of length nvars
+!     right after each other.
+!     Need an overdetermined system:  neqns >= nvars.
+!
+!     On output, this subroutine returns the nvars Taylor coefficients
+!     of the function that is 1 at a point and 0 elsewhere,
+!     where there are neqns points.  For each point, these are the
+!     coefficients of, e.g., in 2D with degree 3:
+!     1, x, x^2, x^3, y, x*y, x^2*y, y^2, x*y^2, y^3.
+!     The output coeffs consists of neqns vectors of lengths nvars
+!     right after each other.
+!
+!     => inputs,  <= outputs
+!     coeffs  => matrix of powers of displacement, length nvars * neqns
+!            <=  Taylor coefficients, length nvars * neqns
+!     cond   <=  condition number, if findc .eq. 1
+!     findc   => 1 to get condition number, 0 otherwise
+!     neqns   => number of equations
+!     nvars   => number of coefficients
+     &     CHF_VR[coeffs],
+     &     CHF_REAL[cond],
+     &     CHF_CONST_INT[findc],
+     &     CHF_CONST_INT[neqns],
+     &     CHF_CONST_INT[nvars])
+
+      real_t A(neqns, nvars), Xt(neqns, nvars)
+      integer i, j, ind
+
+      ind = 0
+      do i = 1, neqns
+         do j = 1, nvars
+            A(i, j) = coeffs(ind)
+            ind = ind + 1
+         enddo
+      enddo
+
+      call solveqr(neqns, nvars, A, Xt, findc, cond)
+
+      ind = 0
+      do i = 1, neqns
+         do j = 1, nvars
+            coeffs(ind) = Xt(i, j)
+            ind = ind + 1
+         enddo
+      enddo
+
+      return
+      end
+
+
+      subroutine sumproductofsubvectors(
+!
+!     This subroutine returns the sum of the product of two real subvectors.
+!
+!     => inputs,  <= outputs
+!     result <=  sum of product of the two subvectors
+!     vec1    => first input vector
+!     start1  => where to start first input vector
+!     vec2    => second input vector
+!     start2  => where to start second input vector
+!     len     => length of subvectors
+     &     CHF_REAL[result],
+     &     CHF_CONST_VR[vec1],
+     &     CHF_CONST_INT[start1],
+     &     CHF_CONST_VR[vec2],
+     &     CHF_CONST_INT[start2],
+     &     CHF_CONST_INT[len])
+
+      integer i1, i2, j
+
+      i1 = start1
+      i2 = start2
+      result = zero
+      do j = 1, len
+         result = result + vec1(i1) * vec2(i2)
+         i1 = i1 + 1
+         i2 = i2 + 1
+      enddo
+
+      return
+      end

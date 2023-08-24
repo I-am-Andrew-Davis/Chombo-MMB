@@ -1,0 +1,18 @@
+This directory assists in the post-processing of HDF5 files generated on the Chombo framework. It provides a means by which extra variables are computed from existing data. The intent is to be compatible with
+
+  (1) HDF5 files with multiple levels of AMR
+  (2) mapped domains
+  (3) periodic and bounded domains
+  (4) up to 6th order accuracy of computed quantities
+
+It would be nice to easily be able to use/compute
+
+  (a) typical derivative-based operations (gradient, divergence, curl)
+  (b) tensor operations (inner product, outer product, etc.)
+  (c) specialized quantities (entropy, rms values, stress tensor, etc.)
+  (d) spatially dependent quantities (x+, y+, z+, etc.)
+  (e) temporally dependent quantities (time-derivatives, dissipation rate, etc.)
+
+The setup is also intended to provide the capability to
+  (i)  analyze multiple HDF5 files from the same simulation and
+  (ii) output domain-wide sums or single-point data as a time series (csv file output).

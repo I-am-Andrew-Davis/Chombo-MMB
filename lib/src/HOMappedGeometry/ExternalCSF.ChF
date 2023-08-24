@@ -1,0 +1,133 @@
+C      _______              __
+C     / ___/ /  ___  __ _  / /  ___
+C    / /__/ _ \/ _ \/  V \/ _ \/ _ \
+C    \___/_//_/\___/_/_/_/_.__/\___/
+C    Please refer to Copyright.txt, in Chombo's root directory.
+
+#include "CONSTANTS.H"
+
+c ----------------------------------------------------------------------
+c  Computes the 4th order gradient of phi in one direction in cells
+c
+c  gradPhi          <=  Cell gradients
+c  phi               => Data
+c  box               => Box defining where to compute gradients
+c  gradDir           => Direction of gradient
+c  dx                => Mesh spacing
+c  shift             => Stencil side, 0 is centered
+c                        + gives lo side stencils, - gives hi      
+c ----------------------------------------------------------------------
+
+      subroutine NODEGRADDIR6THO(
+     &   CHF_FRA1[gradPhi],
+     &   CHF_CONST_FRA1[phi],
+     &   CHF_BOX[box],
+     &   CHF_CONST_INT[gradDir],
+     &   CHF_CONST_REAL[dx],
+     &   CHF_CONST_INT[shift])
+
+      integer CHF_AUTODECL[i]
+      integer CHF_AUTODECL[ii1]
+      integer CHF_AUTODECL[ii2]
+      integer CHF_AUTODECL[ii3]
+      integer CHF_AUTODECL[ii4]
+      integer CHF_AUTODECL[ii5]
+      integer CHF_AUTODECL[ii6]
+
+      real_t factor
+
+      CHF_AUTOID[ii1; gradDir]
+      CHF_AUTOID[ii2; gradDir; 2]
+      CHF_AUTOID[ii3; gradDir; 3]
+      CHF_AUTOID[ii4; gradDir; 4]
+      CHF_AUTOID[ii5; gradDir; 5]
+      CHF_AUTOID[ii6; gradDir; 6]
+      
+      factor = one/(60*dx)
+
+c     select stencil, then iterate over box
+      SELECT CASE (shift)
+      CASE (0)
+         CHF_AUTOMULTIDO[box;i]
+         gradPhi(CHF_AUTOIX[i]) = factor*(
+     &        - 1.0d0*phi(CHF_OFFSETIX[i;-ii3])
+     &        + 9.0d0*phi(CHF_OFFSETIX[i;-ii2])
+     &        - 45.0d0*phi(CHF_OFFSETIX[i;-ii1])
+     &        + 45.0d0*phi(CHF_OFFSETIX[i;+ii1])
+     &        - 9.0d0*phi(CHF_OFFSETIX[i;+ii2])
+     &        + 1.0d0*phi(CHF_OFFSETIX[i;+ii3]) )
+         CHF_ENDDO
+      CASE (1)
+         CHF_AUTOMULTIDO[box;i]
+         gradPhi(CHF_AUTOIX[i]) = factor*(
+     &          1.0d0*phi(CHF_OFFSETIX[i;-ii4])
+     &        - 8.0d0*phi(CHF_OFFSETIX[i;-ii3])
+     &        + 30.0d0*phi(CHF_OFFSETIX[i;-ii2])
+     &        - 80.0d0*phi(CHF_OFFSETIX[i;-ii1])
+     &        + 35.0d0*phi(CHF_AUTOIX[i])
+     &        + 24.0d0*phi(CHF_OFFSETIX[i;+ii1])
+     &        - 2.0d0*phi(CHF_OFFSETIX[i;+ii2]) )
+         CHF_ENDDO
+      CASE(-1)
+         CHF_AUTOMULTIDO[box;i]
+         gradPhi(CHF_AUTOIX[i]) = factor*(
+     &        + 2.0d0*phi(CHF_OFFSETIX[i;-ii2])
+     &        - 24.0d0*phi(CHF_OFFSETIX[i;-ii1])
+     &        - 35.0d0*phi(CHF_AUTOIX[i])
+     &        + 80.0d0*phi(CHF_OFFSETIX[i;+ii1])
+     &        - 30.0d0*phi(CHF_OFFSETIX[i;+ii2])
+     &        + 8.0d0*phi(CHF_OFFSETIX[i;+ii3])
+     &        - 1.0d0*phi(CHF_OFFSETIX[i;+ii4]) )
+         CHF_ENDDO
+      CASE(2)
+         CHF_AUTOMULTIDO[box;i]
+         gradPhi(CHF_AUTOIX[i]) = factor*(
+     &        - 2.0d0*phi(CHF_OFFSETIX[i;-ii5])
+     &        + 15.0d0*phi(CHF_OFFSETIX[i;-ii4])
+     &        - 50.0d0*phi(CHF_OFFSETIX[i;-ii3])
+     &        + 100.0d0*phi(CHF_OFFSETIX[i;-ii2])
+     &        - 150.0d0*phi(CHF_OFFSETIX[i;-ii1])
+     &        + 77.0d0*phi(CHF_AUTOIX[i])
+     &        + 10.0d0*phi(CHF_OFFSETIX[i;+ii1]) )
+         CHF_ENDDO
+      CASE(-2)
+         CHF_AUTOMULTIDO[box;i]
+         gradPhi(CHF_AUTOIX[i]) = factor*(
+     &        - 10.0d0*phi(CHF_OFFSETIX[i;-ii1])
+     &        - 77.0d0*phi(CHF_AUTOIX[i])
+     &        + 150.0d0*phi(CHF_OFFSETIX[i;+ii1])
+     &        - 100.0d0*phi(CHF_OFFSETIX[i;+ii2])
+     &        + 50.0d0*phi(CHF_OFFSETIX[i;+ii3])
+     &        - 15.0d0*phi(CHF_OFFSETIX[i;+ii4])
+     &        + 2.0d0*phi(CHF_OFFSETIX[i;+ii5]) )
+         CHF_ENDDO
+      CASE(3)
+         CHF_AUTOMULTIDO[box;i]
+         gradPhi(CHF_AUTOIX[i]) = factor*(
+     &        + 10.0d0*phi(CHF_OFFSETIX[i;-ii6])
+     &        - 72.0d0*phi(CHF_OFFSETIX[i;-ii5])
+     &        + 225.0d0*phi(CHF_OFFSETIX[i;-ii4])
+     &        - 400.0d0*phi(CHF_OFFSETIX[i;-ii3])
+     &        + 450.0d0*phi(CHF_OFFSETIX[i;-ii2])
+     &        - 360.0d0*phi(CHF_OFFSETIX[i;-ii1])
+     &        + 147.0d0*phi(CHF_AUTOIX[i]) )
+         CHF_ENDDO
+      CASE(-3)
+         CHF_AUTOMULTIDO[box;i]
+         gradPhi(CHF_AUTOIX[i]) = factor*(
+     &        - 147.0d0*phi(CHF_AUTOIX[i])
+     &        + 360.0d0*phi(CHF_OFFSETIX[i;+ii1])
+     &        - 450.0d0*phi(CHF_OFFSETIX[i;+ii2])
+     &        + 400.0d0*phi(CHF_OFFSETIX[i;+ii3])
+     &        - 225.0d0*phi(CHF_OFFSETIX[i;+ii4])
+     &        + 72.0d0*phi(CHF_OFFSETIX[i;+ii5])
+     &        - 10.0d0*phi(CHF_OFFSETIX[i;+ii6]) )
+         CHF_ENDDO
+      CASE DEFAULT
+
+      END SELECT
+
+     
+
+      return
+      end
